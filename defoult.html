@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberAuth // Quantum Cyberpunk Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-color: #030712;
+            --primary-neon: #00f0ff;
+            --secondary-neon: #7000ff;
+            --text-color: #e2e8f0;
+            --glass-bg: rgba(15, 23, 42, 0.75);
+            --glass-border: rgba(0, 240, 255, 0.25);
+            --error-color: #ff0055;
+            --success-color: #00ff88;
+            --warning-color: #ffaa00;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Rajdhani', sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+            color: var(--text-color);
+        }
+
+        /* Canvas */
+        #bg-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Верхняя панель */
+        .top-bar {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 12px;
+            z-index: 10;
+        }
+
+        .control-box {
+            display: flex;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid var(--glass-border);
+            padding: 4px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-ctrl {
+            background: none;
+            border: none;
+            color: #64748b;
+            padding: 6px 12px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.75rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-ctrl.active, .btn-ctrl:hover {
+            color: #fff;
+            background: rgba(0, 240, 255, 0.2);
+            border: 1px solid var(--primary-neon);
+            text-shadow: 0 0 5px var(--primary-neon);
+        }
+
+        /* Контейнеры */
+        .auth-container, .dashboard-container {
+            position: relative;
+            width: 100%;
+            max-width: 460px;
+            padding: 10px;
+            margin: 20px;
+            z-index: 2;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .auth-card, .dashboard-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 40px 30px;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.9), inset 0 0 15px rgba(0, 240, 255, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hidden {
+            display: none !important;
+            opacity: 0;
+            transform: scale(0.95);
+        }
+
+        /* Табы и формы */
+        .tab-box {
+            display: flex;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            padding: 10px 0;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            z-index: 2;
+        }
+
+        .tab-btn.active { color: #fff; text-shadow: 0 0 8px var(--primary-neon); }
+
+        .tab-glider {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: calc(50% - 4px);
+            height: calc(100% - 8px);
+            background: linear-gradient(90deg, rgba(0,240,255,0.2), rgba(112,0,255,0.4));
+            border: 1px solid var(--primary-neon);
+            border-radius: 8px;
+            z-index: 1;
+            transition: transform 0.3s ease;
+        }
+
+        form { display: flex; flex-direction: column; gap: 16px; }
+
+        .form-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.4rem;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            background: linear-gradient(90deg, #fff, var(--primary-neon));
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .input-group {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-group i.icon-left {
+            position: absolute;
+            left: 15px;
+            color: #64748b;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 13px 45px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: #fff;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .input-group input:focus {
+            border-color: var(--primary-neon);
+            box-shadow: 0 0 12px rgba(0, 240, 255, 0.25);
+        }
+
+        .passkey-btn {
+            background: rgba(0, 240, 255, 0.05);
+            border: 1px dashed var(--primary-neon);
+            color: var(--primary-neon);
+            padding: 10px;
+            border-radius: 12px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .submit-btn {
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--primary-neon), var(--secondary-neon));
+            color: #fff;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            letter-spacing: 2px;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .social-icons { display: flex; justify-content: center; gap: 15px; margin-top: 10px; }
+
+        .social-btn {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .social-btn:hover {
+            border-color: var(--primary-neon);
+            color: var(--primary-neon);
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+        }
+
+        /* USER DASHBOARD STYLES */
+        .dashboard-card {
+            max-width: 520px;
+            text-align: center;
+        }
+
+        .user-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        .avatar-container {
+            position: relative;
+            width: 90px;
+            height: 90px;
+        }
+
+        .user-avatar {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 2px solid var(--primary-neon);
+            object-fit: cover;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+        }
+
+        .provider-badge {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            background: var(--bg-color);
+            border: 1px solid var(--primary-neon);
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            color: var(--primary-neon);
+        }
+
+        .user-name {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            color: #fff;
+        }
+
+        .user-clearance {
+            font-size: 0.75rem;
+            font-family: 'Orbitron', sans-serif;
+            color: var(--success-color);
+            border: 1px solid var(--success-color);
+            padding: 2px 8px;
+            border-radius: 4px;
+            letter-spacing: 1px;
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 12px;
+            text-align: left;
+        }
+
+        .stat-label { font-size: 0.7rem; color: #64748b; font-family: 'Orbitron', sans-serif; }
+        .stat-value { font-size: 1rem; color: var(--primary-neon); font-weight: bold; margin-top: 4px; }
+
+        .btn-logout {
+            background: rgba(255, 0, 85, 0.1);
+            border: 1px solid var(--error-color);
+            color: var(--error-color);
+            width: 100%;
+            padding: 12px;
+            border-radius: 12px;
+            font-family: 'Orbitron', sans-serif;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-logout:hover {
+            background: var(--error-color);
+            color: #fff;
+            box-shadow: 0 0 15px rgba(255, 0, 85, 0.5);
+        }
+
+        /* CYBER TERMINAL LOG */
+        .terminal-box {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            width: 320px;
+            height: 120px;
+            background: rgba(3, 7, 18, 0.9);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: var(--primary-neon);
+            overflow-y: auto;
+            backdrop-filter: blur(10px);
+            z-index: 10;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+        }
+
+        .terminal-line { margin-bottom: 4px; word-break: break-all; }
+        .terminal-line.success { color: var(--success-color); }
+        .terminal-line.error { color: var(--error-color); }
+
+        /* 2FA MODAL */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(3, 7, 18, 0.85);
+            backdrop-filter: blur(16px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s;
+        }
+
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+
+        .modal-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--primary-neon);
+            border-radius: 24px;
+            padding: 35px 30px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 0 40px rgba(0, 240, 255, 0.3);
+            text-align: center;
+        }
+
+        .otp-container { display: flex; justify-content: center; gap: 10px; margin: 25px 0; }
+
+        .otp-input {
+            width: 45px;
+            height: 55px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            text-align: center;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.4rem;
+            color: var(--primary-neon);
+            outline: none;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 14px 24px;
+            border-radius: 12px;
+            background: var(--glass-bg);
+            border: 1px solid var(--primary-neon);
+            color: #fff;
+            backdrop-filter: blur(15px);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.4s ease;
+            z-index: 2000;
+        }
+
+        .toast.show { transform: translateY(0); opacity: 1; }
+    </style>
+</head>
+<body>
+
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <div class="control-box">
+            <button class="btn-ctrl active" id="sfx-toggle" onclick="toggleSFX()">
+                <i class="fa-solid fa-volume-high"></i> SFX
+            </button>
+        </div>
+    </div>
+
+    <!-- 1. AUTH FORM CONTAINER -->
+    <div class="auth-container" id="authContainer">
+        <div class="auth-card">
+            <div class="tab-box">
+                <div class="tab-glider" id="glider"></div>
+                <button class="tab-btn active" onclick="switchTab('login')">ВХОД</button>
+                <button class="tab-btn" onclick="switchTab('register')">РЕГИСТРАЦИЯ</button>
+            </div>
+
+            <form id="loginForm" onsubmit="handleAuthSubmit(event, 'login')">
+                <h2 class="form-title">Идентификация</h2>
+                
+                <div class="input-group">
+                    <input type="email" id="login-email" placeholder="Email" required>
+                    <i class="fa-solid fa-envelope icon-left"></i>
+                </div>
+                
+                <div class="input-group">
+                    <input type="password" id="login-pass" placeholder="Пароль" required>
+                    <i class="fa-solid fa-lock icon-left"></i>
+                </div>
+
+                <button type="button" class="passkey-btn" onclick="authenticatePasskey()">
+                    <i class="fa-solid fa-fingerprint"></i> Войти по Passkey
+                </button>
+
+                <button type="submit" class="submit-btn">ВОЙТИ В СИСТЕМУ</button>
+
+                <div style="text-align:center; font-size: 0.75rem; color:#64748b; margin-top:5px;">ИЛИ ВОЙТИ ЧЕРЕЗ</div>
+
+                <div class="social-icons">
+                    <button type="button" class="social-btn" onclick="openOAuthPopup('google')"><i class="fa-brands fa-google"></i></button>
+                    <button type="button" class="social-btn" onclick="openOAuthPopup('github')"><i class="fa-brands fa-github"></i></button>
+                    <button type="button" class="social-btn" onclick="openOAuthPopup('discord')"><i class="fa-brands fa-discord"></i></button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 2. USER DASHBOARD CONTAINER (Отображается после входа) -->
+    <div class="dashboard-container hidden" id="dashboardContainer">
+        <div class="dashboard-card">
+            <div class="user-header">
+                <div class="avatar-container">
+                    <img src="" id="dash-avatar" class="user-avatar" alt="User Avatar">
+                    <div class="provider-badge" id="dash-provider-icon">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                </div>
+                <h2 class="user-name" id="dash-name">USER_NAME</h2>
+                <span class="user-clearance" id="dash-clearance">SECURITY CLEARANCE: LEVEL 4</span>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">EMAIL ADDRESS</div>
+                    <div class="stat-value" id="dash-email" style="font-size:0.8rem; word-break:break-all;">user@net.com</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">SESSION STATUS</div>
+                    <div class="stat-value" style="color:var(--success-color);">ENCRYPTED</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">AUTHENTICATION</div>
+                    <div class="stat-value" id="dash-provider">JWT / OAUTH</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">SYSTEM PING</div>
+                    <div class="stat-value">14 ms</div>
+                </div>
+            </div>
+
+            <button class="btn-logout" onclick="logout()"><i class="fa-solid fa-power-off"></i> ВЫХОД ИЗ СИСТЕМЫ</button>
+        </div>
+    </div>
+
+    <!-- 3. CYBER LOG TERMINAL -->
+    <div class="terminal-box" id="terminalLog">
+        <div class="terminal-line">[SYS_INIT] Quantum Core Active...</div>
+    </div>
+
+    <!-- 4. 2FA MODAL -->
+    <div class="modal-overlay" id="modal-2fa">
+        <div class="modal-card">
+            <h2 class="form-title" style="font-size: 1.2rem;">2FA Двухфакторный Вход</h2>
+            <p style="font-size: 0.8rem; color: #94a3b8; margin-top: 8px;">Введите 6-значный код безопасности</p>
+            
+            <div class="otp-container">
+                <input type="text" class="otp-input" maxlength="1">
+                <input type="text" class="otp-input" maxlength="1">
+                <input type="text" class="otp-input" maxlength="1">
+                <input type="text" class="otp-input" maxlength="1">
+                <input type="text" class="otp-input" maxlength="1">
+                <input type="text" class="otp-input" maxlength="1">
+            </div>
+
+            <button type="button" class="submit-btn" style="width:100%;" onclick="verify2FACode()">ПОДТВЕРДИТЬ</button>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        /* ====================================================
+           1. CANVAS 3D PARTITION & CYBER CURSOR
+           ==================================================== */
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        let mouse = { x: -100, y: -100 };
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('mousemove', (e) => { mouse.x = e.x; mouse.y = e.y; });
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.vx = (Math.random() - 0.5) * 1.2;
+                this.vy = (Math.random() - 0.5) * 1.2;
+            }
+            update() {
+                this.x += this.vx; this.y += this.vy;
+                if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+                if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 1.5, 0, Math.PI * 2);
+                ctx.fillStyle = '#00f0ff';
+                ctx.fill();
+            }
+        }
+
+        function initParticles() {
+            particles = [];
+            for (let i = 0; i < 60; i++) particles.push(new Particle());
+        }
+
+        function animateCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => { p.update(); p.draw(); });
+
+            // Отрисовка кастомного курсора-прицела
+            if (mouse.x > 0 && mouse.y > 0) {
+                ctx.strokeStyle = '#00f0ff';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(mouse.x, mouse.y, 12, 0, Math.PI * 2);
+                ctx.moveTo(mouse.x - 18, mouse.y); ctx.lineTo(mouse.x + 18, mouse.y);
+                ctx.moveTo(mouse.x, mouse.y - 18); ctx.lineTo(mouse.x, mouse.y + 18);
+                ctx.stroke();
+            }
+            requestAnimationFrame(animateCanvas);
+        }
+        resizeCanvas(); initParticles(); animateCanvas();
+
+
+        /* ====================================================
+           2. CYBER LOG TERMINAL & AUDIO SFX
+           ==================================================== */
+        function logToTerminal(msg, type = '') {
+            const term = document.getElementById('terminalLog');
+            const line = document.createElement('div');
+            line.className = `terminal-line ${type}`;
+            line.innerText = `> ${msg}`;
+            term.appendChild(line);
+            term.scrollTop = term.scrollHeight;
+        }
+
+        let sfxEnabled = true;
+        let audioCtx = null;
+        function playSound(type) {
+            if (!sfxEnabled) return;
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            if (type === 'click') {
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(400, now + 0.05);
+                gain.gain.setValueAtTime(0.1, now);
+                osc.start(now); osc.stop(now + 0.05);
+            } else if (type === 'success') {
+                osc.frequency.setValueAtTime(523, now);
+                osc.frequency.setValueAtTime(659, now + 0.08);
+                gain.gain.setValueAtTime(0.15, now);
+                osc.start(now); osc.stop(now + 0.25);
+            }
+        }
+
+
+        /* ====================================================
+           3. JWT & AUTO-LOGIN SYSTEM
+           ==================================================== */
+        let pendingUser = null;
+        let pendingToken = null;
+
+        // Проверка сессии при загрузке страницы
+        window.addEventListener('DOMContentLoaded', async () => {
+            logToTerminal("SYSTEM BOOT: Checking local credentials...");
+            const savedToken = localStorage.getItem('cyber_jwt_token');
+
+            if (savedToken) {
+                try {
+                    const res = await fetch('/api/verify-token', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ token: savedToken })
+                    });
+                    const data = await res.json();
+
+                    if (data.valid) {
+                        logToTerminal("AUTO-LOGIN SUCCESS: Active JWT found", "success");
+                        renderDashboard(data.user);
+                    } else {
+                        localStorage.removeItem('cyber_jwt_token');
+                        logToTerminal("EXPIRED SESSION: Re-authentication required", "error");
+                    }
+                } catch (e) {
+                    logToTerminal("OFFLINE MODE: Unable to verify JWT", "error");
+                }
+            }
+        });
+
+        function renderDashboard(user) {
+            document.getElementById('authContainer').classList.add('hidden');
+            document.getElementById('dashboardContainer').classList.remove('hidden');
+
+            document.getElementById('dash-name').innerText = user.name;
+            document.getElementById('dash-email').innerText = user.email;
+            document.getElementById('dash-avatar').src = user.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + user.email;
+            document.getElementById('dash-clearance').innerText = `SECURITY CLEARANCE: ${user.clearance || 'LEVEL 3'}`;
+            document.getElementById('dash-provider').innerText = user.provider.toUpperCase();
+
+            const iconMap = { google: 'fa-google', github: 'fa-github', discord: 'fa-discord', cyberauth: 'fa-shield-halved' };
+            document.getElementById('dash-provider-icon').innerHTML = `<i class="fa-brands ${iconMap[user.provider] || 'fa-user'}"></i>`;
+        }
+
+        function logout() {
+            playSound('click');
+            localStorage.removeItem('cyber_jwt_token');
+            logToTerminal("USER LOGOUT: Session terminated", "error");
+            document.getElementById('dashboardContainer').classList.add('hidden');
+            document.getElementById('authContainer').classList.remove('hidden');
+        }
+
+
+        /* ====================================================
+           4. OAUTH & 2FA HANDLERS
+           ==================================================== */
+        function openOAuthPopup(provider) {
+            playSound('click');
+            logToTerminal(`INIT OAUTH: Connecting to ${provider.toUpperCase()}...`);
+
+            const width = 500, height = 650;
+            const left = (window.innerWidth - width) / 2;
+            const top = (window.innerHeight - height) / 2;
+
+            const clientIds = {
+                google: 'YOUR_GOOGLE_CLIENT_ID',
+                github: 'Ov23liCllAt2UDccf4Je',
+                discord: '1546514835943071784'
+            };
+
+            const redirectUri = encodeURIComponent(`http://localhost:3000/auth/${provider}/callback`);
+            let url = `http://localhost:3000/auth/${provider}/callback`;
+
+            if (provider === 'google') {
+                url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientIds.google}&redirect_uri=${redirectUri}&response_type=code&scope=email%20profile`;
+            } else if (provider === 'github') {
+                url = `https://github.com/login/oauth/authorize?client_id=${clientIds.github}&redirect_uri=${redirectUri}&scope=user:email`;
+            } else if (provider === 'discord') {
+                url = `https://discord.com/api/oauth2/authorize?client_id=${clientIds.discord}&redirect_uri=${redirectUri}&response_type=code&scope=identify%20email`;
+            }
+
+            window.open(url, `OAuth_${provider}`, `width=${width},height=${height},top=${top},left=${left}`);
+        }
+
+        window.addEventListener('message', (event) => {
+            if (event.data?.type === 'OAUTH_SUCCESS') {
+                playSound('success');
+                logToTerminal(`OAUTH VERIFIED: User [${event.data.user.name}]`, "success");
+                pendingUser = event.data.user;
+                pendingToken = event.data.token;
+                open2FAModal();
+            }
+        });
+
+        async function handleAuthSubmit(e, type) {
+            e.preventDefault();
+            playSound('click');
+            const email = document.getElementById('login-email').value;
+
+            logToTerminal(`AUTH REQUEST: Authorizing ${email}...`);
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                pendingUser = data.user;
+                pendingToken = data.token;
+                open2FAModal();
+            }
+        }
+
+        function open2FAModal() {
+            document.getElementById('modal-2fa').classList.add('active');
+            logToTerminal("2FA CHALLENGE: Awaiting verification code...");
+        }
+
+        function verify2FACode() {
+            playSound('success');
+            localStorage.setItem('cyber_jwt_token', pendingToken);
+            logToTerminal("2FA PASSED: Access Granted", "success");
+            document.getElementById('modal-2fa').classList.remove('active');
+            renderDashboard(pendingUser);
+        }
+
+        function authenticatePasskey() {
+            playSound('click');
+            logToTerminal("BIOMETRICS: Passkey scan initiated...");
+            setTimeout(() => {
+                pendingUser = { name: "Ağasəlim", email: "agasalim@cyber.az", provider: "cyberauth", clearance: "LEVEL 5" };
+                pendingToken = "mock_passkey_jwt_token";
+                open2FAModal();
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
